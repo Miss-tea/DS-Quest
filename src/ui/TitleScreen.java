@@ -24,7 +24,7 @@ public class TitleScreen extends Application {
 
         // Background Image
 
-        Image bgImage = new Image(getClass().getResource("/titleScreenBg.jpg").toExternalForm());
+        Image bgImage = new Image(TitleScreen.class.getResourceAsStream("/titleScreenBg.jpg"));
         ImageView bgView = new ImageView(bgImage);
         bgView.setFitWidth(1200);
         bgView.setFitHeight(700);
@@ -56,18 +56,18 @@ public class TitleScreen extends Application {
         title.setFill(Color.web("#FFFFFF"));
         title.setStroke(Color.BLACK);
         title.setStrokeWidth(2);
-        title.setLayoutX(80);
+        title.setLayoutX(85);
         title.setLayoutY(250);
 
 
         //Ready Text
 
-        Text subtitle = new Text("READY TO SURVIVE?");
+        Text subtitle = new Text("READY TO EXPLORE DSA?");
         subtitle.setFont(cinzelSubtitle);
         subtitle.setFill(Color.web("#FFFFFF"));
-        title.setStroke(Color.BLACK);
-        title.setStrokeWidth(2);
-        subtitle.setLayoutX(285);
+        subtitle.setStroke(Color.BLACK);
+        subtitle.setStrokeWidth(0.75);
+        subtitle.setLayoutX(245);
         subtitle.setLayoutY(325);
 
 
@@ -118,30 +118,32 @@ public class TitleScreen extends Application {
                 "-fx-background-color: rgba(0,0,0,0.6);" +
                         "-fx-border-color: #C8B890;" +
                         "-fx-border-width: 2;" +
-                        "-fx-padding: 10 40;" +
-                        "-fx-background-radius: 5;"
+                        "-fx-padding: 14 45 14 45;" +
+                        "-fx-background-radius: 18;" +
+                        "-fx-border-radius: 18;"
         );
+
 
         // Hover effect
         btn.setOnMouseEntered(e -> btn.setStyle(
                 "-fx-background-color: rgba(200,184,144,0.7);" +
                         "-fx-border-color: #E8E0C2;" +
                         "-fx-border-width: 2;" +
-                        "-fx-padding: 10 40;" +
-                        "-fx-background-radius: 5;"
+                        "-fx-padding: 14 45 14 45;" +
+                        "-fx-background-radius: 18;" +
+                        "-fx-border-radius: 18;"
         ));
 
         btn.setOnMouseExited(e -> btn.setStyle(
                 "-fx-background-color: rgba(0,0,0,0.6);" +
                         "-fx-border-color: #C8B890;" +
                         "-fx-border-width: 2;" +
-                        "-fx-padding: 10 40;" +
-                        "-fx-background-radius: 5;"
+                        "-fx-padding: 14 45 14 45;" +
+                        "-fx-background-radius: 18;" +
+                        "-fx-border-radius: 18;"
         ));
-
         return btn;
     }
-
     public static void main(String[] args) {
         launch(args);
     }
