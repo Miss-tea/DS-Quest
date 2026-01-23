@@ -12,6 +12,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.animation.Animation;   // <-- added
+import javafx.util.Duration;
 
 /**
  * Wizard + dialogue box that only appears when speaking.
@@ -31,8 +33,14 @@ public class DialoguePane extends StackPane {
     private final VBox panel = new VBox(16);
     private final Label text = new Label();
 
+    // --- Aura runtime ---
+    private Animation wizardAuraAnim; // started on show(), stopped on hide()
+
     public DialoguePane() {
         setPickOnBounds(false);  // empty areas don't block mouse
+
+        // Tag the wizard image so other code can find it if needed
+        wizard.setId("wizardAvatar"); // <-- important ID
 
         // === Dialogue skin: dialoguebox.jpg as background ===
         BackgroundSize bs = new BackgroundSize(
@@ -67,7 +75,6 @@ public class DialoguePane extends StackPane {
         text.setTextFill(Color.web("#15110a"));
 
         // Give the label a wrap width that fits inside panel padding
-        //   wrap = FIXED_WIDTH - (left + right insets)
         double wrap = FIXED_WIDTH - (PANEL_PADDING.getLeft() + PANEL_PADDING.getRight());
         if (wrap < 200) wrap = FIXED_WIDTH * 0.85; // safe fallback
         text.setMaxWidth(wrap);
@@ -76,15 +83,13 @@ public class DialoguePane extends StackPane {
         panel.getChildren().add(text);
 
         // === Layout: panel at left, wizard at right ===
-        HBox row = new HBox(-100, panel,wizard);
+        HBox row = new HBox(-100, panel, wizard);
         row.setAlignment(Pos.BOTTOM_CENTER);
 
         getChildren().add(row);
 
         // Hidden by default; BaseLevel shows/hides as needed
         setVisible(false);
-        // Keep mouse events active when interactive (buttons present),
-        // you may toggle this in BaseLevel if you want non-blocking hints.
         setMouseTransparent(false);
     }
 
@@ -103,7 +108,7 @@ public class DialoguePane extends StackPane {
                     b.setFont(AssetLoader.loadFont("/fonts/CinzelDecorative-Regular.ttf", 16));
                     b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;");
                     b.setOnMouseEntered(ev -> b.setStyle("-fx-background-color: #a16930; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
-                    b.setOnMouseExited(ev -> b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
+                    b.setOnMouseExited(ev  -> b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
                 }
                 btns.getChildren().add(a);
             }
@@ -111,9 +116,24 @@ public class DialoguePane extends StackPane {
         }
 
         setVisible(true);
+
+        // --- Start mysterious aura on the wizard now ---
+        stopAuraIfAny(); // safety in case show() is called again
+        wizardAuraAnim = WizardAura.attach(wizard, Color.LIGHTSLATEGRAY);
     }
 
     public void hide() {
+        // --- Stop aura & clear effect before hiding ---
+        stopAuraIfAny();
+        WizardAura.detach(wizard);
+
         setVisible(false);
+    }
+
+    private void stopAuraIfAny() {
+        if (wizardAuraAnim != null) {
+            wizardAuraAnim.stop();
+            wizardAuraAnim = null;
+        }
     }
 }

@@ -17,6 +17,8 @@ import javafx.scene.text.Font;
 
 import java.util.function.Predicate;
 
+
+import java.util.function.Consumer;
 public class SlotView extends StackPane {
 
     private final int index;
@@ -26,6 +28,17 @@ public class SlotView extends StackPane {
     private final Label idxLabel = new Label();
 
     private Predicate<Artifact> acceptPredicate = a -> true;
+
+    private boolean removable = true;  // default true
+    private Consumer<SlotView> onBlockedRemoval = null; // <-- NEW: callback when blocked
+    public void setRemovable(boolean value) {
+        this.removable = value;
+    }
+
+
+    public void setOnBlockedRemoval(Consumer<SlotView> callback) { // <-- NEW
+        this.onBlockedRemoval = callback;
+    }
 
     public SlotView(int index) {
         this.index = index;
@@ -81,6 +94,22 @@ public class SlotView extends StackPane {
                 fireEvent(new SlotClearedEvent(this, removed));
             }
         });
+
+
+        setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.SECONDARY && !isEmpty()) {
+                if (removable) {
+                    Artifact removed = removeArtifact();
+                    fireEvent(new SlotClearedEvent(this, removed));
+                } else {
+                    // 🔴 Removal is blocked — play feedback if provided
+                    if (onBlockedRemoval != null) onBlockedRemoval.accept(this);
+                    e.consume();
+                }
+            }
+        });
+
+
     }
 
     public void setAcceptPredicate(Predicate<Artifact> p) {

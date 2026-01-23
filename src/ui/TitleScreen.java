@@ -144,7 +144,7 @@ public class TitleScreen extends Application {
         ));
         return btn;
     }
-    public static void main(String[] args) {
-        launch(args);
-    }
+    //public static void main(String[] args) {
+    //launch(args);
+    // }
 }
