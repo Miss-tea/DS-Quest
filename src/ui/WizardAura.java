@@ -36,7 +36,7 @@ public final class WizardAura {
         DropShadow outer = new DropShadow();
         outer.setColor(base.deriveColor(0, 1.0, 1.0, 0.75));
         outer.setRadius(18);
-        outer.setSpread(0.25);
+        outer.setSpread(0.75);
         outer.setInput(inner);
 
         Glow glow = new Glow(0.25);

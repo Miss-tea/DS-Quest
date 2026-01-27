@@ -24,7 +24,7 @@ public class SlotView extends StackPane {
     private final int index;
     private Artifact artifact; // nullable
     private final ImageView iconHolder = new ImageView();
-    private final ImageView slotFrame = AssetLoader.imageView(AssetLoader.SLOT_BG, 140, 140, true);
+    private final ImageView slotFrame = AssetLoader.imageView(AssetLoader.SLOT_BG, 150, 150, true);
     private final Label idxLabel = new Label();
 
     private Predicate<Artifact> acceptPredicate = a -> true;

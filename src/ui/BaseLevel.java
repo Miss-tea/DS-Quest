@@ -17,7 +17,63 @@ public abstract class BaseLevel {
     protected final DialoguePane dialogue = new DialoguePane();
     protected final HUD hud = new HUD(gameState);
 
+
     public Scene buildScene(double w, double h) {
+        // === BACKGROUND ===
+        ImageView bg = AssetLoader.imageView(AssetLoader.BG, w, h, false);
+        bg.setPreserveRatio(false);
+
+        StackPane canvas = new StackPane(bg);
+        canvas.setAlignment(Pos.TOP_LEFT);
+
+        // === WORLD LAYER ===
+        StackPane worldLayer = new StackPane();
+        worldLayer.setPadding(new Insets(20));
+
+        // === OVERLAY ===
+        StackPane overlay = new StackPane();
+        overlay.setPickOnBounds(false);
+
+        StackPane.setAlignment(hud, Pos.TOP_LEFT);
+        StackPane.setMargin(hud, new Insets(10, 20, 0, 20));
+
+        dialogue.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(dialogue, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(dialogue, new Insets(0, 0, -30, 300));
+
+        overlay.getChildren().addAll(hud, dialogue);
+
+        // === COMBINE ===
+        StackPane all = new StackPane(canvas, worldLayer, overlay);
+        all.setPickOnBounds(false);
+
+        root.setCenter(all);
+        root.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null))); // avoid white gaps
+
+        dialogue.hide();
+
+        // Build the scene
+        Scene scene = new Scene(root, w, h, Color.BLACK);
+
+        // 🔗 RESPONSIVE BINDINGS: Make background fill the scene
+        bg.fitWidthProperty().bind(scene.widthProperty());
+        bg.fitHeightProperty().bind(scene.heightProperty());
+
+        // Optional: ensure container panes expand with scene
+        canvas.minWidthProperty().bind(scene.widthProperty());
+        canvas.minHeightProperty().bind(scene.heightProperty());
+        worldLayer.minWidthProperty().bind(scene.widthProperty());
+        worldLayer.minHeightProperty().bind(scene.heightProperty());
+        overlay.minWidthProperty().bind(scene.widthProperty());
+        overlay.minHeightProperty().bind(scene.heightProperty());
+
+        // Initialize your level content AFTER scene is created so bindings apply
+        initLevel(worldLayer, w, h);
+
+        return scene;
+    }
+
+    /**public Scene buildScene(double w, double h) {
 
         // === BACKGROUND ===
         ImageView bg = AssetLoader.imageView(AssetLoader.BG, w, h, false);
@@ -56,7 +112,7 @@ public abstract class BaseLevel {
         initLevel(worldLayer, w, h);
 
         return new Scene(root, w, h, Color.BLACK);
-    }
+    }**/
 
     protected abstract void initLevel(StackPane worldLayer, double w, double h);
 

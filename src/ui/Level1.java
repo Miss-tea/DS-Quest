@@ -67,8 +67,8 @@ public class Level1 extends BaseLevel {
     @Override
     protected void initLevel(StackPane worldLayer, double w, double h) {
         // --- Slots row ---
-        HBox slotRow = new HBox(-30);
-        slotRow.setAlignment(Pos.BASELINE_LEFT);
+        HBox slotRow = new HBox(20);
+        slotRow.setAlignment(Pos.CENTER_LEFT);
         for (int i = 0; i < 5; i++) {
             SlotView s = new SlotView(i);
             slots.add(s);
