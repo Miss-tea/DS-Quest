@@ -1,4 +1,3 @@
-
 package ui;
 
 import core.Artifact;
@@ -64,6 +63,17 @@ public class Level1 extends BaseLevel {
     // === Instruction Paper reference (for dynamic text) ===
     private VBox instructionBox;        // the paper panel (has a Label with id="instrText")
 
+    // -------------------- Max score for star calculation --------------------
+    private static final int MAX_FINAL_STRATEGY =
+            Math.max(Math.max(SCORE_SHIELD_REMOVED, SCORE_KEY_REMOVED),
+                    Math.max(SCORE_TORCH_REMOVED, SCORE_POTION_REMOVED));
+
+    private static final int MAX_SCORE_LEVEL1 =
+            LevelConfig.SCORE_INSERTION_CORRECT
+                    + (TOTAL_QUIZ * LevelConfig.SCORE_QUIZ_CORRECT)
+                    + MAX_FINAL_STRATEGY;
+    // -----------------------------------------------------------------------------
+
     @Override
     protected void initLevel(StackPane worldLayer, double w, double h) {
         // --- Slots row ---
@@ -92,7 +102,7 @@ public class Level1 extends BaseLevel {
         // --- Inventory (bottom) ---
         HBox bottom = new HBox(inventory);
         bottom.setAlignment(Pos.BOTTOM_CENTER);
-        bottom.setPadding(new Insets(10, 40, 30, 0)); // top, right, bottom, left
+        bottom.setPadding(new Insets(10, 40, 30, 0));
         inventory.setTranslateY(6);
 
         // --- Combine into world container ---
@@ -111,15 +121,7 @@ public class Level1 extends BaseLevel {
         inventory.add(Artifact.TORCH);
         inventory.add(Artifact.SHIELD);
 
-        // Hide an item in shelf when it is placed into a slot
-        /**slots.forEach(s ->
-                s.addEventHandler(SlotView.SlotChangedEvent.SLOT_CHANGED, ev -> {
-                    SlotView sv = ev.getSlot();
-                    if (!sv.isEmpty()) {
-                        inventory.hide(sv.getArtifact());
-                    }
-                })
-        );**/
+        // On placement: hide in shelf + pop feedback
         slots.forEach(s -> s.addEventHandler(SlotView.SlotChangedEvent.SLOT_CHANGED, ev -> {
             SlotView sv = ev.getSlot();
             if (!sv.isEmpty()) {
@@ -136,13 +138,10 @@ public class Level1 extends BaseLevel {
                                                                         javafx.scene.paint.Color.WHITE;
 
                 UiUtil.placePop(sv, color);
-
-
             }
         }));
 
-
-        // Right‑click on a slot returns the item to shelf; record first removal in final puzzle
+        // Right‑click: return to shelf + record first removal (for final puzzle)
         slots.forEach(s ->
                 s.addEventHandler(SlotView.SlotClearedEvent.SLOT_CLEARED, ev -> {
                     Artifact rem = ev.getRemoved();
@@ -171,7 +170,6 @@ public class Level1 extends BaseLevel {
         if (!allFilled) {
             say("Place all 5 artifacts into the slots according to the instruction first.", null);
             hideDialogueThen(1600, null);
-            // return; // non-blocking per your choice
         }
 
         boolean correct = true;
@@ -196,7 +194,7 @@ public class Level1 extends BaseLevel {
 
         } else {
             gameState.loseHeart();
-            resetSlotsToInventory(); // return everything to shelf for retry
+            resetSlotsToInventory();
             shake(slots.toArray(new Node[0]));
             say("Wrong order! Heart -1.\nAll items are back on the shelf—try inserting again.", null);
             hideDialogueThen(1800, null);
@@ -213,7 +211,7 @@ public class Level1 extends BaseLevel {
         }
     }
 
-    // ----------------------- Quiz order: 4 rounds; last is Sword; first 3 exclude Sword -----------------------
+    // ----------------------- Quiz order: 4 rounds; last is Sword -----------------------
     private void prepareQuizOrder() {
         quizOrder.clear();
 
@@ -321,7 +319,6 @@ public class Level1 extends BaseLevel {
 
         // 🔁 Update instruction paper to your Tip for Part 3
         if (instructionBox != null) {
-
             var node = instructionBox.lookup("#instrText");
             if (node instanceof javafx.scene.control.Label tipLbl) {
 
@@ -347,8 +344,7 @@ public class Level1 extends BaseLevel {
             }
         }
 
-
-            // Narrative + options
+        // Narrative + options
         say("Huhahahah! The Sword at index 2 is cursed.\n" +
                         "You must place magical poison at an adjacent slot of the Sword!\n" +
                         "You have two options:",
@@ -371,7 +367,7 @@ public class Level1 extends BaseLevel {
             removalMode = true;
             removedArtifact = null;
             addPoisonToInventory(true);
-            say("FOOL!Do you think slots grows on trees!\nNO realoc()in this dungeon!\nPoison is now in your inventory. Free index 1 or 3 and place it.", null);
+            say("FOOL! Do you think slots grow on trees?\nNO realoc() in this dungeon!\nPoison is now in your inventory. Free index 1 or 3 and place it.", null);
             hideDialogueThen(3500, null);
         });
         return b;
@@ -440,7 +436,7 @@ public class Level1 extends BaseLevel {
         // If player presses DONE without inserting poison -> lose heart and warn
         if (poisonPlacedIdx == null) {
             gameState.loseHeart();
-            say("insert potion,either the curse will not removed", null);
+            say("Insert poison, otherwise the curse will not be removed.", null);
             hideDialogueThen(1600, null);
             return;
         }
@@ -453,29 +449,22 @@ public class Level1 extends BaseLevel {
         String strategyMsg;
 
         if (decision == Artifact.SHIELD) {
-            // 1) Shield removed => Healing, Key, Sword, Magical Potion, Torch
             addScore = SCORE_SHIELD_REMOVED; // 20
-            strategyMsg = "You chose everything over COVER. A calculated risk.     \n" +
-                    "   The next chamber's traps will test if your        \n" +
-                    "   calculations were correct.";
+            strategyMsg = "You chose everything over COVER. A calculated risk." +
+                    "The next chamber's traps will test if your calculations were correct.";
         } else if (decision == Artifact.KEY) {
-            // 2) Key removed => Healing, Magical Potion, Sword, Shield, Torch
             addScore = SCORE_KEY_REMOVED; // 10
-            strategyMsg = "You traded ACCESS for POWER. A programmer's folly\n" +
-                    "   Ahead lie doors you cannot open, paths forever   \n" +
-                    "   sealed. The dungeon remembers your sacrifice.";
+            strategyMsg = "You traded ACCESS for POWER. A programmer's folly." +
+                    "Ahead lie doors you cannot open—paths forever sealed.";
         } else if (decision == Artifact.TORCH) {
-            // 3) Torch removed => Healing, Key, Sword, Magical Potion, Shield
             addScore = SCORE_TORCH_REMOVED; // 30
-            strategyMsg = "You paid with light to keep both key and shield.  \n" +
-                    "   A trade of vision for versatility. The mark of    \n" +
-                    "   a true strategist in this dungeon of choices.";
+            strategyMsg = "You paid with light to keep both key and shield." +
+                    "A trade of vision for versatility. True strategist vibes.";
         } else if (decision == Artifact.POTION) {
-            // 4) Healing removed => Key, Magical Potion, Sword, Shield
             addScore = SCORE_POTION_REMOVED; // 25
-            strategyMsg = "You paid with healing to keep both key and shield. But how will you survive for your wrong steps,in the large dungeon?";
+            strategyMsg = "You paid with healing to keep both key and shield." +
+                    "But how will you survive your wrong steps in the large dungeon?";
         } else {
-            // No removal detected (shouldn't happen in normal flow)
             addScore = 0;
             strategyMsg = "Strategy applied.";
         }
@@ -488,8 +477,9 @@ public class Level1 extends BaseLevel {
             worldRoot.getChildren().remove(doneWrap);
         }
 
-        say("Level Complete! Strategy score +" + addScore + ".\n" + strategyMsg,
-                () -> hideDialogueThen(8000, null));
+        // === Show the Level Status Board (with stars based on max score) ===
+        int finalScore = gameState.getScore();
+        showSurvived(finalScore, strategyMsg, MAX_SCORE_LEVEL1);
     }
 
     private Integer findIndexOf(Artifact a) {
@@ -534,7 +524,7 @@ public class Level1 extends BaseLevel {
         // 2) Add a smoky translucent overlay on top of the world
         if (quizOverlay == null) {
             quizOverlay = new StackPane();
-            quizOverlay.setPickOnBounds(true);     // capture clicks
+            quizOverlay.setPickOnBounds(true);      // capture clicks
             quizOverlay.setMouseTransparent(false); // block interactions
             quizOverlay.setStyle("-fx-background-color: rgba(10,10,10,0.28);"); // base dim
 
@@ -552,14 +542,6 @@ public class Level1 extends BaseLevel {
             );
             pulse.setCycleCount(Animation.INDEFINITE);
             pulse.play();
-
-            // Optional: If you have a smoke texture, add it here and animate its drift
-            // ImageView smoke = core.AssetLoader.imageView("/smoke.png", 1600, 0, true);
-            // smoke.setOpacity(0.22);
-            // quizOverlay.getChildren().add(smoke);
-            // TranslateTransition drift = new TranslateTransition(Duration.seconds(12), smoke);
-            // drift.setFromX(-120); drift.setToX(120); drift.setAutoReverse(true);
-            // drift.setCycleCount(Animation.INDEFINITE); drift.play();
         }
 
         // Place overlay over the world (worldRoot's parent is the StackPane worldLayer)
@@ -657,7 +639,6 @@ public class Level1 extends BaseLevel {
             lbl.setId("instrText"); // <- so we can change it in Part 3
             lbl.setStyle("-fx-text-fill: #2c2416; -fx-font-size: 18px; -fx-font-weight: bold;");
             lbl.setWrapText(true);
-            //lbl.setMaxWidth(box.getPrefWidth() -  (44 + 44));
             lbl.setMaxWidth(box.getPrefWidth() - (box.getPadding().getLeft() + box.getPadding().getRight()));
             box.getChildren().add(lbl);
             return box;
