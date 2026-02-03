@@ -10,28 +10,18 @@ import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import javafx.animation.Interpolator;
 
-/**
- * Attaches a mysterious, pulsing aura to a wizard Node (e.g., the dialogue avatar ImageView).
- * Effect stack: InnerShadow (inward rim) -> DropShadow (soft outer aura) -> Glow (overall bloom)
- * + a very subtle vertical bob.
- */
+
 public final class WizardAura {
     private WizardAura(){}
 
-    /**
-     * Attaches the animated aura to the given wizard node and starts it immediately.
-     * @param wizard the avatar node (e.g., ImageView) to decorate
-     * @param base   the base color for the aura (e.g., Color.MEDIUMPURPLE)
-     * @return an Animation you can stop later (ParallelTransition of bob + pulse)
-     */
     public static Animation attach(Node wizard, Color base) {
         if (wizard == null) return null;
 
-        // --- Build effect chain: InnerShadow -> DropShadow -> Glow ---
+        // Effect chain: InnerShadow TO DropShadow TO Glow
         InnerShadow inner = new InnerShadow();
         inner.setColor(base);
         inner.setRadius(20);
-        inner.setChoke(0.70); // tighter magical rim
+        inner.setChoke(0.70);
 
         DropShadow outer = new DropShadow();
         outer.setColor(base.deriveColor(0, 1.0, 1.0, 0.75));
@@ -44,7 +34,7 @@ public final class WizardAura {
 
         wizard.setEffect(glow);
 
-        // --- Soft bobbing (float) ---
+        // WIZARD UREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE YEEEEEEEEEEEEEE
         double startY = wizard.getTranslateY();
         TranslateTransition bob = new TranslateTransition(Duration.millis(1600), wizard);
         bob.setFromY(startY - 2.0);
@@ -53,7 +43,7 @@ public final class WizardAura {
         bob.setCycleCount(Animation.INDEFINITE);
         bob.setInterpolator(Interpolator.EASE_BOTH);
 
-        // --- Pulse the glow and radii over time ---
+        // WIZARD GLOW KOREEEEEEEEEEEEEEEEEE---
         Timeline pulse = new Timeline(
                 new KeyFrame(Duration.ZERO,
                         new KeyValue(glow.levelProperty(), 0.22, Interpolator.EASE_BOTH),
@@ -74,7 +64,6 @@ public final class WizardAura {
         return fx;
     }
 
-    /** Removes any effect from the wizard node. (Call after stopping the returned Animation.) */
     public static void detach(Node wizard) {
         if (wizard != null) wizard.setEffect(null);
     }

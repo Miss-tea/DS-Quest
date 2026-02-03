@@ -70,7 +70,6 @@ public class TitleScreen extends Application {
         startBtn.setLayoutX(240);
         startBtn.setLayoutY(340);
 
-        // ✅ Properly closed handler — only navigation logic inside
         startBtn.setOnAction(e -> {
             LevelSelectScreen select = new LevelSelectScreen(stage);
             Scene selectScene = new Scene(select, 1200, 720);

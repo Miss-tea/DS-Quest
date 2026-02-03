@@ -5,7 +5,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.ParallelTransition;
 import javafx.animation.Timeline;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
@@ -19,7 +18,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 
 import java.util.ArrayList;
@@ -35,24 +33,19 @@ public class LevelStatusBoard extends StackPane {
     public enum Mode { SURVIVED, GAME_OVER }
 
     // =========== SCREEN POSITION OF THE WHOLE BOARD ===========
-    // Top-left of the entire board (art) relative to the overlay control
     private static final double BOARD_X = 384;  // screen coordinate X
-    private static final double BOARD_Y = 7;   // screen coordinate Y (can be negative)
+    private static final double BOARD_Y = 7;    // screen coordinate Y
 
     // =========== DISPLAY SCALING ===========
-    // Final displayed width of the board art (the image will be scaled uniformly from intrinsic size)
     private static final double BOARD_FIT_WIDTH = 520;
 
     // =========== FIGMA ANCHORS IN IMAGE PIXELS ===========
-    // Stars row (centered at this point on the rock)
     private static final double STAR_CX   = 215;
     private static final double STAR_Y    = 115;
 
-    // Status text (centered at this point on the red ribbon)
     private static final double STATUS_CX = 150;
     private static final double STATUS_Y  = 145;
 
-    // White paper content (top-left) and a usable width (adjust once to match your paper interior)
     private static final double PAPER_X   = 130;
     private static final double PAPER_Y   = 220;
     private static final double PAPER_W   = 200;
@@ -67,7 +60,7 @@ public class LevelStatusBoard extends StackPane {
 
     // Layers
     private final Region dimLayer;     // full-screen dimmer
-    private final Pane absoluteLayer;  // absolute layer that fills parent; we place the board here at (BOARD_X, BOARD_Y)
+    private final Pane absoluteLayer;  // absolute layer that fills parent
 
     // Board canvas built in IMAGE coordinates, then scaled
     private final Pane canvas;         // size = image intrinsic (imgW x imgH)
@@ -92,6 +85,9 @@ public class LevelStatusBoard extends StackPane {
     private final double imgW;
     private final double imgH;
 
+    // NEW: Callback when DONE is pressed (after hide finishes)
+    private Runnable onDone;
+
     public LevelStatusBoard(Node blurTarget, Button doneButtonTemplate) {
         this.blurTarget = blurTarget;
 
@@ -100,9 +96,9 @@ public class LevelStatusBoard extends StackPane {
         dimLayer.setStyle("-fx-background-color: rgba(0,0,0,0.45);");
         dimLayer.setPickOnBounds(true);
 
-        // ---------- Absolute layer (fills parent; we position board by layoutX/Y inside) ----------
+        // ---------- Absolute layer (fills parent) ----------
         absoluteLayer = new Pane();
-        absoluteLayer.setPickOnBounds(false); // interact only on visible nodes
+        absoluteLayer.setPickOnBounds(false);
 
         // Keep both filling our parent
         parentProperty().addListener((obs, o, p) -> {
@@ -168,9 +164,9 @@ public class LevelStatusBoard extends StackPane {
         messageLabel.setTextFill(Color.web("#4a3b2a"));
         messageLabel.setMaxWidth(PAPER_W);
 
-
-            doneButton = UiUtil.btn("DONE");
-        doneButton.setOnAction(e -> hide());
+        doneButton = UiUtil.btn("DONE");
+        // UPDATED: call the overload that accepts an after-callback
+        doneButton.setOnAction(e -> hide(this.onDone));
 
         contentBox = new VBox(8, scoreLabel, messageLabel, doneButton);
         contentBox.setAlignment(Pos.TOP_CENTER);
@@ -189,14 +185,13 @@ public class LevelStatusBoard extends StackPane {
         // ---------- Holder (positioned absolutely on screen) ----------
         boardHolder = new Pane(canvas);
         boardHolder.setPickOnBounds(false);
-        // Place the whole board at the requested screen coordinates:
         boardHolder.setLayoutX(BOARD_X);
         boardHolder.setLayoutY(BOARD_Y);
 
         // ---------- Put everything together ----------
         absoluteLayer.getChildren().add(boardHolder);
 
-        setAlignment(Pos.TOP_LEFT); // we use absolute coordinates inside absoluteLayer
+        setAlignment(Pos.TOP_LEFT);
         getChildren().setAll(dimLayer, absoluteLayer);
 
         setVisible(false);
@@ -216,18 +211,11 @@ public class LevelStatusBoard extends StackPane {
         child.maxHeightProperty().bind(parent.heightProperty());
     }
 
-    private Button cloneButton(Button src) {
-        Button b = new Button(src.getText());
-        b.getStyleClass().addAll(src.getStyleClass());
-        b.setPrefWidth(src.getPrefWidth());
-        b.setPrefHeight(src.getPrefHeight());
-        b.setMnemonicParsing(src.isMnemonicParsing());
-        b.setDisable(src.isDisable());
-        b.setOpacity(src.getOpacity());
-        return b;
-    }
-
     // -------------------- Public API --------------------
+
+    public void setOnDone(Runnable onDone) {
+        this.onDone = onDone;
+    }
 
     public void showSurvived(int score, String strategyMsg, int maxScore) {
         if (maxScore <= 0) maxScore = Math.max(1, score);
@@ -274,11 +262,16 @@ public class LevelStatusBoard extends StackPane {
     }
 
     public void hide() {
+        hide(null);
+    }
+
+    public void hide(Runnable after) {
         FadeTransition fade = new FadeTransition(Duration.millis(160), this);
         fade.setToValue(0);
         fade.setOnFinished(e -> {
             setVisible(false);
             UiBlur.apply(blurTarget, false);
+            if (after != null) after.run();
         });
         fade.play();
     }
@@ -326,8 +319,8 @@ public class LevelStatusBoard extends StackPane {
     private int computeStars(int score, int maxScore) {
         double pct = (maxScore <= 0) ? 0.0 : (double) score / (double) maxScore;
         if (pct >= 1.0) return 3;
-        if (pct >= 0.60) return 2;
-        if (pct >= 0.30) return 1;
+        if (pct >= 0.85) return 2;
+        if (pct >= 0.70) return 1;
         return 0;
     }
 

@@ -46,11 +46,11 @@ public class SlotView extends StackPane {
         setPrefSize(150, 150);
         setMaxSize(150, 150);
 
-        Font f = AssetLoader.loadFont("/fonts/CinzelDecorative-Bold.ttf", 18);
-        idxLabel.setText("[" + index + "]");
+        Font f = AssetLoader.loadFont("/fonts/CinzelDecorative-Bold.ttf", 14);
+        idxLabel.setText("[0x7ff030" + index + "]");
         idxLabel.setTextFill(Color.rgb(220, 180, 120));
         idxLabel.setFont(f);
-        idxLabel.setTranslateY(-58);
+        idxLabel.setTranslateY(55);
 
         getChildren().addAll(slotFrame, iconHolder, idxLabel);
         iconHolder.setTranslateY(-12);
@@ -102,7 +102,7 @@ public class SlotView extends StackPane {
                     Artifact removed = removeArtifact();
                     fireEvent(new SlotClearedEvent(this, removed));
                 } else {
-                    // 🔴 Removal is blocked — play feedback if provided
+
                     if (onBlockedRemoval != null) onBlockedRemoval.accept(this);
                     e.consume();
                 }
@@ -133,7 +133,7 @@ public class SlotView extends StackPane {
         fireEvent(new SlotChangedEvent(this));
     }
 
-    /** Removes artifact and returns the previous item. */
+    //REMOVE WITH DOUBLE CLICK
     public Artifact removeArtifact() {
         Artifact prev = this.artifact;
         this.artifact = null;
@@ -142,7 +142,7 @@ public class SlotView extends StackPane {
         return prev;
     }
 
-    // -------- Custom events (safe getters, no name clash with EventObject.source) --------
+    // Custom events
     public static class SlotChangedEvent extends Event {
         public static final EventType<SlotChangedEvent> SLOT_CHANGED =
                 new EventType<>(Event.ANY, "SLOT_CHANGED");

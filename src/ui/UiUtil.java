@@ -4,6 +4,7 @@ package ui;
 import core.AssetLoader;
 import javafx.animation.Interpolator;
 import javafx.animation.TranslateTransition;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.paint.Color;
@@ -97,5 +98,35 @@ public final class UiUtil {
         tl.setOnFinished(ev -> n.setEffect(prev));
         tl.playFromStart();
     }
+
+
+
+        /** Pulses a soft colored glow on the node, then clears it. */
+        public static void glowPulse(Node node, Color color, double maxRadius, int ms) {
+            DropShadow ds = new DropShadow();
+            ds.setColor(color);
+            ds.setRadius(0);
+            ds.setSpread(0.65); // higher spread to look like glow instead of shadow
+            node.setEffect(ds);
+
+            Timeline tl = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(ds.radiusProperty(), 0),
+                            new KeyValue(ds.colorProperty(), color.deriveColor(0,1,1,0.0)) // start almost invisible
+                    ),
+                    new KeyFrame(Duration.millis(ms * 0.35),
+                            new KeyValue(ds.radiusProperty(), maxRadius),
+                            new KeyValue(ds.colorProperty(), color.deriveColor(0,1,1,0.85))
+                    ),
+                    new KeyFrame(Duration.millis(ms),
+                            new KeyValue(ds.radiusProperty(), 0),
+                            new KeyValue(ds.colorProperty(), color.deriveColor(0,1,1,0.0))
+                    )
+            );
+
+            tl.setOnFinished(e -> node.setEffect(null));
+            tl.playFromStart();
+        }
+
 
 }

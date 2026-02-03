@@ -12,21 +12,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.animation.Animation;   // <-- added
+import javafx.animation.Animation;
 import javafx.util.Duration;
 
-/**
- * Wizard + dialogue box that only appears when speaking.
- * - Uses dialoguebox.jpg as background
- * - Fixed size (does not change with text length)
- * - Buttons centered below the text
- */
 public class DialoguePane extends StackPane {
 
-    // 👉 Pick a fixed size that matches your dialoguebox.jpg artwork
     private static final double FIXED_WIDTH  = 800;   // e.g., 600–700
     private static final double FIXED_HEIGHT = 280;   // e.g., 230–280
-    // Padding inside the box (already baked into the art margin? keep modest)
     private static final Insets PANEL_PADDING = new Insets(18, 28, 18, 28);
 
     private final ImageView wizard = AssetLoader.imageView(AssetLoader.WIZARD, 300, 0, true);
@@ -37,12 +29,11 @@ public class DialoguePane extends StackPane {
     private Animation wizardAuraAnim; // started on show(), stopped on hide()
 
     public DialoguePane() {
-        setPickOnBounds(false);  // empty areas don't block mouse
+        setPickOnBounds(false);
 
-        // Tag the wizard image so other code can find it if needed
-        wizard.setId("wizardAvatar"); // <-- important ID
+        wizard.setId("wizardAvatar");
 
-        // === Dialogue skin: dialoguebox.jpg as background ===
+        // Dialogue skin: dialoguebox.jpg as background
         BackgroundSize bs = new BackgroundSize(
                 BackgroundSize.AUTO, BackgroundSize.AUTO, true, true, true, false
         );
@@ -68,13 +59,12 @@ public class DialoguePane extends StackPane {
         panel.setAlignment(Pos.CENTER);
         panel.setEffect(new DropShadow(12, Color.BLACK));
 
-        // === Text settings ===
+        //Text settings
         text.setWrapText(true);
-        Font f = AssetLoader.loadFont("/fonts/CinzelDecorative-Regular.ttf", 18);
+        Font f = AssetLoader.loadFont("/fonts/Montaga-Regular.ttf", 22);
         text.setFont(f);
         text.setTextFill(Color.web("#15110a"));
 
-        // Give the label a wrap width that fits inside panel padding
         double wrap = FIXED_WIDTH - (PANEL_PADDING.getLeft() + PANEL_PADDING.getRight());
         if (wrap < 200) wrap = FIXED_WIDTH * 0.85; // safe fallback
         text.setMaxWidth(wrap);
@@ -82,22 +72,19 @@ public class DialoguePane extends StackPane {
 
         panel.getChildren().add(text);
 
-        // === Layout: panel at left, wizard at right ===
+        // Layout:panel left,wizard right
         HBox row = new HBox(-100, panel, wizard);
         row.setAlignment(Pos.BOTTOM_CENTER);
 
         getChildren().add(row);
 
-        // Hidden by default; BaseLevel shows/hides as needed
+
         setVisible(false);
         setMouseTransparent(false);
     }
 
-    /** Show with text and (optional) action buttons. */
     public void show(String message, Node... actions) {
         text.setText(message);
-
-        // reset panel children and rebuild (text + optional buttons)
         panel.getChildren().setAll(text);
 
         if (actions != null && actions.length > 0) {
@@ -117,13 +104,13 @@ public class DialoguePane extends StackPane {
 
         setVisible(true);
 
-        // --- Start mysterious aura on the wizard now ---
-        stopAuraIfAny(); // safety in case show() is called again
+        // mysterious aura on the wizard
+        stopAuraIfAny();
         wizardAuraAnim = WizardAura.attach(wizard, Color.LIGHTSLATEGRAY);
     }
 
     public void hide() {
-        // --- Stop aura & clear effect before hiding ---
+        // aura stop & clear effect before hiding
         stopAuraIfAny();
         WizardAura.detach(wizard);
 

@@ -1,18 +1,30 @@
 package ui;
 
 import core.Artifact;
+import core.AssetLoader;
 import core.LevelConfig;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
+import javafx.animation.RotateTransition;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.layout.*;
+import javafx.scene.media.AudioClip;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.util.Duration;
 
 import java.util.ArrayList;
@@ -22,6 +34,23 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Level 1 with three parts: insertion, quiz, final puzzle.
+ * Auto-screenshots are captured at:
+ *  - Part 1 START (end of initLevel, after first pulse),
+ *  - Part 2 START (after quiz overlay is added),
+ *  - Part 3 START.
+ * The Learnings page appears after LevelStatusBoard DONE and navigates to LevelSelect on NEXT.
+ *
+ * Added polish:
+ * - Floating "−1 ❤" + HUD pulse.
+ * - Green aura highlights for Poison targets (slots 1 & 3).
+ * - Slow rotating fog motes on quiz overlay.
+ * - Ghostly whisper when Poison placed correctly.
+ * - Dynamic explanations on mistakes.
+ * - Shake + crack effect when wrong.
+ * - Holographic preview in sacrifice mode.
+ */
 public class Level1 extends BaseLevel {
 
     private final List<SlotView> slots = new ArrayList<>(5);
@@ -72,7 +101,18 @@ public class Level1 extends BaseLevel {
             LevelConfig.SCORE_INSERTION_CORRECT
                     + (TOTAL_QUIZ * LevelConfig.SCORE_QUIZ_CORRECT)
                     + MAX_FINAL_STRATEGY;
-    // -----------------------------------------------------------------------------
+
+    // === Learnings: snapshot store ===
+    private final LearningsSnapStore learnSnaps = new LearningsSnapStore();
+
+    // ---- Assets / FX for new polish ----
+    private AudioClip whisperClip;              // optional SFX
+    private StackPane holoOverlay;              // hologram preview overlay (status layer)
+
+    @Override
+    protected String getLevelTitle() {
+        return LevelConfig.LEVEL_1_TITLE;
+    }
 
     @Override
     protected void initLevel(StackPane worldLayer, double w, double h) {
@@ -160,29 +200,51 @@ public class Level1 extends BaseLevel {
         doneWrap = new HBox(doneBtn);
         doneWrap.setAlignment(Pos.CENTER);
         world.getChildren().add(doneWrap);
+
+        // === SNAP 1: Part 1 START (after first pulse) — full frame (background + world + HUD/Dialog) ===
+        Platform.runLater(() -> {
+            SnapshotUtil.captureNode(getBlurTarget(), 2.0, Color.TRANSPARENT, img -> {
+                learnSnaps.clear(); // start fresh
+                learnSnaps.add(img);
+            });
+        });
+        // --- Wizard start instruction (with button) ---
+        Button gotIt = UiUtil.btn("Got it");
+        gotIt.setOnAction(ev -> dialogue.hide());
+
+        say("\nPlace all artifacts according to the conditions.", null, gotIt);
+
+        // Init optional whisper
+        initWhisper();
     }
 
+    // ----------------------- Part 1: validate insertion order -----------------------
     // ----------------------- Part 1: validate insertion order -----------------------
     private void validatePart1() {
         if (part1Done) return;
 
         boolean allFilled = slots.stream().noneMatch(SlotView::isEmpty);
         if (!allFilled) {
+            // 🔄 Restore whole-row shake when not all slots are filled
+            shake(slots.toArray(new Node[0]));
             say("Place all 5 artifacts into the slots according to the instruction first.", null);
             hideDialogueThen(1600, null);
+            return; // ⛔ Stop here; don't proceed to order validation
         }
 
         boolean correct = true;
+        SlotView firstWrong = null; // HEART FX anchor
         for (SlotView s : slots) {
             Artifact should = LevelConfig.CORRECT_ORDER.get(s.getIndex());
             if (s.getArtifact() != should) {
                 correct = false;
+                if (firstWrong == null) firstWrong = s;
                 break;
             }
         }
 
         if (correct) {
-            gameState.addScore(LevelConfig.SCORE_INSERTION_CORRECT);
+            getGameState().addScore(LevelConfig.SCORE_INSERTION_CORRECT);
             part1Done = true;
 
             quizRound = 0;
@@ -193,10 +255,17 @@ public class Level1 extends BaseLevel {
             say("So,you know Insertion....Now I'll teleport you to the slots randomly.You have to say what you see there.", null, startBtn);
 
         } else {
-            gameState.loseHeart();
-            resetSlotsToInventory();
+            // ❤️ Heart FX near the first wrong slot (fallback to DONE button or board)
+            Node anchor = (firstWrong != null) ? firstWrong : (doneBtn != null ? doneBtn : boardRef);
+            loseHeartWithFx(anchor);
+
+            // 🔄 Already had whole-row shake here — keep it
             shake(slots.toArray(new Node[0]));
+
             say("Wrong order! Heart -1.\nAll items are back on the shelf—try inserting again.", null);
+
+            // Reset after feedback
+            resetSlotsToInventory();
             hideDialogueThen(1800, null);
         }
     }
@@ -239,6 +308,11 @@ public class Level1 extends BaseLevel {
         if (quizRound == 0) {
             setSlotsInteractive(false);
             enterQuizVisualLock();
+
+            // SNAP 2: Part 2 START (whole frame with smoky overlay) — defer a pulse
+            Platform.runLater(() ->
+                    SnapshotUtil.captureNode(getBlurTarget(), 2.0, Color.TRANSPARENT, learnSnaps::add)
+            );
         }
 
         if (quizRound == 0 || quizOrder.size() != TOTAL_QUIZ) {
@@ -273,7 +347,7 @@ public class Level1 extends BaseLevel {
         final boolean isSwordQuestion = (correctAns == Artifact.SWORD);
 
         optCorrect.setOnAction(ev -> {
-            gameState.addScore(LevelConfig.SCORE_QUIZ_CORRECT);
+            getGameState().addScore(LevelConfig.SCORE_QUIZ_CORRECT);
 
             if (isLastRound && isSwordQuestion) {
                 dialogue.hide();
@@ -289,8 +363,10 @@ public class Level1 extends BaseLevel {
         });
 
         optWrong.setOnAction(ev -> {
-            gameState.loseHeart();
-            say("Wrong! Heart -1.", null);
+            // Heart FX near the asked slot; dynamic explanation; shake+crack
+            loseHeartWithFx(slots.get(qIdx));
+            explainWrongQuiz(qIdx, correctAns);
+            feedbackWrongOnSlot(slots.get(qIdx));
             hideDialogueThen(900, () -> {
                 quizRound++;
                 startQuiz();
@@ -317,26 +393,25 @@ public class Level1 extends BaseLevel {
             hideDialogueThen(900, null);
         });
 
+        // SNAP 3: Part 3 START (whole frame)
+        SnapshotUtil.captureNode(getBlurTarget(), 2.0, Color.TRANSPARENT, learnSnaps::add);
+
         // 🔁 Update instruction paper to your Tip for Part 3
         if (instructionBox != null) {
             var node = instructionBox.lookup("#instrText");
             if (node instanceof javafx.scene.control.Label tipLbl) {
 
-                // Fade out
                 var out = new javafx.animation.FadeTransition(Duration.millis(180), tipLbl);
                 out.setFromValue(1.0);
                 out.setToValue(0.0);
 
                 out.setOnFinished(ev -> {
-                    // Update new text + style
                     tipLbl.setText("Tip:\nFavor rises\nwhen flame\nfades,and\ndefense\nendures.");
                     tipLbl.setStyle("-fx-text-fill: #2c2416; -fx-font-size: 18px; -fx-font-weight: bold;");
 
-                    // Fade back in
                     var in = new javafx.animation.FadeTransition(Duration.millis(4000), tipLbl);
                     in.setFromValue(0.0);
                     in.setToValue(1.0);
-
                     in.play();
                 });
 
@@ -362,11 +437,13 @@ public class Level1 extends BaseLevel {
     private Button requestBtn() {
         Button b = UiUtil.btn("[Request New Slot]");
         b.setOnAction(e -> {
-            gameState.loseHeart();
+            // Lose a heart here anchored on the button
+            loseHeartWithFx(b);
             // Proceed to gameplay: show POISON and allow removal.
             removalMode = true;
             removedArtifact = null;
             addPoisonToInventory(true);
+            installRemovalPreviews(); // allow hover previews in this path too (optional)
             say("FOOL! Do you think slots grow on trees?\nNO realoc() in this dungeon!\nPoison is now in your inventory. Free index 1 or 3 and place it.", null);
             hideDialogueThen(3500, null);
         });
@@ -379,6 +456,7 @@ public class Level1 extends BaseLevel {
             removalMode = true;
             removedArtifact = null;     // only the first removal will count
             addPoisonToInventory(true); // show poison immediately for insertion
+            installRemovalPreviews();   // enable holographic hover previews
             say("Right‑click ONE slot to remove that item back to the shelf.\nThen place POISON at index 1 or 3.", null);
             hideDialogueThen(1500, null);
         });
@@ -398,6 +476,9 @@ public class Level1 extends BaseLevel {
             return (idx == 1 || idx == 3) && s.isEmpty();
         }));
 
+        // Turn on green aura highlights for valid targets
+        highlightPoisonTargets(true);
+
         // Wire once: on poison placement -> just remember index (no auto-complete)
         if (!poisonWired) {
             for (SlotView s : slots) {
@@ -415,6 +496,8 @@ public class Level1 extends BaseLevel {
     /** Only records the index where Poison is placed; finalization is done on DONE button. */
     private void onPoisonPlaced(int idx) {
         poisonPlacedIdx = idx; // valid indices enforced by acceptPredicate
+        highlightPoisonTargets(false);  // remove aura after success
+        playGhostWhisper();             // ghostly feedback
     }
 
     /** Determine which original artifact is missing from the final layout (ignores Magical Potion). */
@@ -435,8 +518,8 @@ public class Level1 extends BaseLevel {
     private void finalizeFinalPuzzle() {
         // If player presses DONE without inserting poison -> lose heart and warn
         if (poisonPlacedIdx == null) {
-            gameState.loseHeart();
-            say("Insert poison, otherwise the curse will not be removed.", null);
+            loseHeartWithFx(doneBtn != null ? doneBtn : boardRef);
+            explainNeedPoisonFirst();
             hideDialogueThen(1600, null);
             return;
         }
@@ -469,17 +552,18 @@ public class Level1 extends BaseLevel {
             strategyMsg = "Strategy applied.";
         }
 
-        gameState.addScore(addScore);
+        getGameState().addScore(addScore);
         removalMode = false;
+        clearHologram();
 
         // Hide the reused DONE button after completion
         if (doneWrap != null) {
             worldRoot.getChildren().remove(doneWrap);
         }
 
-        // === Show the Level Status Board (with stars based on max score) ===
-        int finalScore = gameState.getScore();
-        showSurvived(finalScore, strategyMsg, MAX_SCORE_LEVEL1);
+        // === Show the Level Status Board (with stars), then Learnings ===
+        int finalScore = getGameState().getScore();
+        showSurvivedThen(finalScore, strategyMsg, MAX_SCORE_LEVEL1, this::showLevel1Learnings);
     }
 
     private Integer findIndexOf(Artifact a) {
@@ -507,7 +591,7 @@ public class Level1 extends BaseLevel {
         inventory.setMouseTransparent(!interactive);
     }
 
-    // ---------- Quiz visual effects (blur + fume) ----------
+    // ---------- Quiz visual effects (blur + fume + fog motes) ----------
     private void enterQuizVisualLock() {
         if (quizVisualActive) return;
         quizVisualActive = true;
@@ -542,6 +626,10 @@ public class Level1 extends BaseLevel {
             );
             pulse.setCycleCount(Animation.INDEFINITE);
             pulse.play();
+
+            // --- Fog motes ---
+            Group motes = createFogMotes(70, 1600, 900);
+            quizOverlay.getChildren().add(motes);
         }
 
         // Place overlay over the world (worldRoot's parent is the StackPane worldLayer)
@@ -587,12 +675,262 @@ public class Level1 extends BaseLevel {
         p.playFromStart();
     }
 
-    /** Shake helper (for wrong order feedback). */
+    /** Shake helper. */
     private void shake(Node... nodes) {
         if (nodes == null) return;
-        for (Node n : nodes) {
-            UiUtil.shake(n);
+        for (Node n : nodes) UiUtil.shake(n);
+    }
+
+    // ---------- HEART FX: floating "-1 ❤" + HUD pulse ----------
+    private void loseHeartWithFx(Node anchor) {
+        getGameState().loseHeart();
+        try {
+            HUD hudAccess = getHud();
+            if (hudAccess != null) hudAccess.pulseHearts();
+        } catch (Throwable ignore) {}
+        showMinusOneHeartBubble(anchor);
+    }
+
+    private void showMinusOneHeartBubble(Node anchor) {
+        if (anchor == null || anchor.getScene() == null) return;
+
+        Label bubble = new Label("−1 ❤");
+        bubble.setStyle("-fx-text-fill: #FF4A4A; -fx-font-size: 18px; -fx-font-weight: bold;");
+        bubble.setMouseTransparent(true);
+        bubble.setOpacity(0.0);
+
+        addToStatusLayer(bubble);
+        StackPane.setAlignment(bubble, Pos.TOP_LEFT);
+
+        Platform.runLater(() -> {
+            StackPane statusLayer = getStatusLayer();
+            if (statusLayer == null || bubble.getParent() == null) return;
+
+            Bounds bScene = anchor.localToScene(anchor.getBoundsInLocal());
+            Point2D topCenterScene = new Point2D(
+                    bScene.getMinX() + bScene.getWidth() / 2.0,
+                    bScene.getMinY()
+            );
+            Point2D p = statusLayer.sceneToLocal(topCenterScene);
+
+            bubble.setTranslateX(p.getX());
+            bubble.setTranslateY(p.getY());
+
+            Timeline tl = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(bubble.opacityProperty(), 0.0),
+                            new KeyValue(bubble.translateYProperty(), p.getY())
+                    ),
+                    new KeyFrame(Duration.millis(150),
+                            new KeyValue(bubble.opacityProperty(), 1.0)
+                    ),
+                    new KeyFrame(Duration.millis(750),
+                            new KeyValue(bubble.translateYProperty(), p.getY() - 24),
+                            new KeyValue(bubble.opacityProperty(), 0.0)
+                    )
+            );
+            tl.setOnFinished(e -> statusLayer.getChildren().remove(bubble));
+            tl.play();
+        });
+    }
+
+    // ---------- GREEN AURA for Poison targets ----------
+    private void highlightPoisonTargets(boolean on) {
+        for (int i = 0; i < slots.size(); i++) {
+            SlotView s = slots.get(i);
+            if (on && (i == 1 || i == 3)) {
+                s.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(76,200,120,0.85), 20, 0.6, 0, 0);");
+            } else {
+                s.setStyle(null);
+            }
         }
+    }
+
+    // ---------- Fog motes ----------
+    private Group createFogMotes(int count, double width, double height) {
+        Group g = new Group();
+        Random r = new Random();
+        for (int i = 0; i < count; i++) {
+            double x = r.nextDouble() * width;
+            double y = r.nextDouble() * height;
+            double radius = 1.5 + r.nextDouble() * 2.5;
+
+            Circle mote = new Circle(radius, Color.web("#ffffff", 0.22));
+            mote.setTranslateX(x);
+            mote.setTranslateY(y);
+
+            Timeline flicker = new Timeline(
+                    new KeyFrame(Duration.ZERO, new KeyValue(mote.opacityProperty(), 0.15 + r.nextDouble() * 0.25)),
+                    new KeyFrame(Duration.seconds(2 + r.nextDouble() * 2), new KeyValue(mote.opacityProperty(), 0.05 + r.nextDouble() * 0.20))
+            );
+            flicker.setAutoReverse(true);
+            flicker.setCycleCount(Animation.INDEFINITE);
+            flicker.play();
+
+            g.getChildren().add(mote);
+        }
+
+        RotateTransition rot = new RotateTransition(Duration.seconds(40), g);
+        rot.setFromAngle(0);
+        rot.setToAngle(360);
+        rot.setCycleCount(Animation.INDEFINITE);
+        rot.play();
+
+        return g;
+    }
+
+    // ---------- Ghostly whisper ----------
+    private void initWhisper() {
+        try {
+            // Place a whisper.wav at /audio/whisper.wav in resources; else fallback will be used
+            var res = getClass().getResource("/audio/whisper.wav");
+            if (res != null) {
+                whisperClip = new AudioClip(res.toExternalForm());
+                whisperClip.setVolume(0.35);
+                whisperClip.setRate(0.95);
+            }
+        } catch (Exception ignore) {
+            whisperClip = null;
+        }
+    }
+
+    private void playGhostWhisper() {
+        if (whisperClip != null) {
+            whisperClip.play();
+        } else {
+            say("(a ghostly whisper) \"Good... the curse quivers...\"", null);
+            hideDialogueThen(1200, null);
+        }
+    }
+
+    // ---------- Dynamic explanations ----------
+    private void explainWrongInsertion(SlotView wrong) {
+        int i = wrong.getIndex();
+        Artifact placed = wrong.getArtifact();
+        Artifact expected = LevelConfig.CORRECT_ORDER.get(i);
+
+        String placedName = (placed == null) ? "Empty" : placed.displayName();
+        String expectedName = (expected == null) ? "Empty" : expected.displayName();
+
+        say("Wrong at index [" + i + "].\n" +
+                "Expected: " + expectedName + "\n" +
+                "But you placed: " + placedName + "\n" +
+                "Heart −1.", null);
+    }
+
+    private void explainWrongQuiz(int idx, Artifact shouldBe) {
+        String expectedName = (shouldBe == null) ? "Empty" : shouldBe.displayName();
+        say("Not quite.\nAt index [" + idx + "] the array holds: " + expectedName + ".\nHeart −1.", null);
+    }
+
+    private void explainNeedPoisonFirst() {
+        say("The curse resists…\nPoison must be inserted at index 1 or 3 first.\nHeart −1.", null);
+    }
+
+    // ---------- Shake + crack feedback ----------
+    private void feedbackWrongOnSlot(Node slotNode) {
+        if (slotNode == null) return;
+
+        UiUtil.shake(slotNode);
+
+        // Draw temp cracks on parent overlay
+        if (!(slotNode.getParent() instanceof Pane parent)) return;
+
+        Group cracks = new Group();
+        cracks.setMouseTransparent(true);
+
+        Line l1 = new Line(6, 6, 34, 18);
+        Line l2 = new Line(34, 18, 12, 28);
+        Line l3 = new Line(12, 28, 30, 42);
+        for (Line l : new Line[]{l1, l2, l3}) {
+            l.setStroke(Paint.valueOf("#ffffff"));
+            l.setOpacity(0.9);
+            l.setStrokeWidth(1.6);
+        }
+
+        Bounds b = slotNode.getBoundsInParent();
+        cracks.setTranslateX(b.getMinX() + 6);
+        cracks.setTranslateY(b.getMinY() + 6);
+
+        parent.getChildren().add(cracks);
+
+        Timeline t = new Timeline(
+                new KeyFrame(Duration.ZERO, new KeyValue(cracks.opacityProperty(), 0.95)),
+                new KeyFrame(Duration.millis(450), new KeyValue(cracks.opacityProperty(), 0.0))
+        );
+        t.setOnFinished(e -> parent.getChildren().remove(cracks));
+        t.play();
+    }
+
+    // ---------- Holographic preview on sacrifice mode ----------
+    private void installRemovalPreviews() {
+        if (holoOverlay == null) {
+            holoOverlay = new StackPane();
+            holoOverlay.setPickOnBounds(false);
+            holoOverlay.setMouseTransparent(true);
+        }
+        addToStatusLayer(holoOverlay);
+
+        for (SlotView s : slots) {
+            s.setOnMouseEntered(ev -> {
+                if (!removalMode) return;
+                Artifact a = s.getArtifact();
+                if (a == null || a == Artifact.SWORD) return;
+                showHologramForSlot(s, a);
+            });
+            s.setOnMouseExited(ev -> clearHologram());
+        }
+    }
+
+    private void showHologramForSlot(SlotView s, Artifact a) {
+        clearHologram();
+        String text = switch (a) {
+            case SHIELD -> "Fate Preview:\nLose DEFENSE.\nStrategy +20";
+            case KEY    -> "Fate Preview:\nLose ACCESS.\nStrategy +10";
+            case TORCH  -> "Fate Preview:\nLose LIGHT.\nStrategy +30";
+            case POTION -> "Fate Preview:\nLose HEALING.\nStrategy +25";
+            default     -> "Fate Preview:\nNo change.";
+        };
+
+        Label holo = new Label(text);
+        holo.setStyle("""
+            -fx-background-color: rgba(120,200,255,0.12);
+            -fx-text-fill: rgba(180,230,255,0.95);
+            -fx-border-color: rgba(120,200,255,0.35);
+            -fx-border-width: 1.2;
+            -fx-padding: 10 14;
+            -fx-font-size: 14px;
+            -fx-background-radius: 10;
+            -fx-border-radius: 10;
+        """);
+        holo.setMouseTransparent(true);
+
+        Timeline shimmer = new Timeline(
+                new KeyFrame(Duration.ZERO,        new KeyValue(holo.opacityProperty(), 0.0)),
+                new KeyFrame(Duration.millis(220), new KeyValue(holo.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(1200),new KeyValue(holo.opacityProperty(), 0.9))
+        );
+        shimmer.setAutoReverse(true);
+        shimmer.setCycleCount(Animation.INDEFINITE);
+
+        holoOverlay.getChildren().add(holo);
+        StackPane.setAlignment(holo, Pos.TOP_LEFT);
+
+        Platform.runLater(() -> {
+            if (holo.getParent() == null) return;
+            Bounds bScene = s.localToScene(s.getBoundsInLocal());
+            Point2D p = getStatusLayer().sceneToLocal(
+                    bScene.getMinX() + bScene.getWidth() + 10,
+                    bScene.getMinY() - 6
+            );
+            holo.setTranslateX(p.getX());
+            holo.setTranslateY(p.getY());
+            shimmer.play();
+        });
+    }
+
+    private void clearHologram() {
+        if (holoOverlay != null) holoOverlay.getChildren().clear();
     }
 
     // ---------- Instruction panel with PAPER background ----------
@@ -643,5 +981,45 @@ public class Level1 extends BaseLevel {
             box.getChildren().add(lbl);
             return box;
         }
+    }
+
+    // ---------- Learnings screen ----------
+    private void showLevel1Learnings() {
+        var imgs = learnSnaps.all();
+        var snaps = new java.util.ArrayList<LearningSnap>(3);
+
+        if (imgs.size() > 0 && imgs.get(0) != null)
+            snaps.add(new LearningSnap(imgs.get(0), "Array is a sequential memory,here you saw slots address are sequential.You can insert elements in array simply"));
+        if (imgs.size() > 1 && imgs.get(1) != null)
+            snaps.add(new LearningSnap(imgs.get(1), "Array is random accessible.You can access data from array randomly"));
+        if (imgs.size() > 2 && imgs.get(2) != null)
+            snaps.add(new LearningSnap(imgs.get(2), "Array is fixed-sized Data Structure..You can't just increase its size.It's fixed at creation.Also deletion of a element is imple in array.\n"));
+        snaps.add(LearningSnap.textOnly(
+                "    BONUS:\n    ARRAY SYNTAX (C/C++):\n" +
+                        "    *Declaration with Size:\n" +
+                        "    dataType arrayName[arraySize];\n" +
+                        "     Example: int numbers[5];\n\n" +
+                        "    *Declaration and Initialization:\n" +
+                        "    dataType arrayName[] =                       {value1,value2,value3};\n" +
+                        "     Example: int numbers[] = {10, 20, 30};\n\n" +
+                        "    Accessing Elements:\n" +
+                        "    arrayName[index]\n" +
+                        "     Example: int first = numbers[0];\n"
+        ));
+        if (snaps.isEmpty()) return;
+
+        LearningsBoard board = new LearningsBoard(
+                getBlurTarget(),
+                AssetLoader.image(AssetLoader.LEARNING_BOARD),
+                snaps,
+                () -> {
+                    learnSnaps.clear();
+                    goToLevelSelectAfterCompletion(1);
+                },
+                true // <-- sequential mode ON
+        );
+
+        addToStatusLayer(board);
+        board.show();
     }
 }

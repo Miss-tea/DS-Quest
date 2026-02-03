@@ -23,17 +23,16 @@ import java.util.prefs.Preferences;
 
 public class LevelSelectScreen extends Pane {
 
-    // ----- CONFIG -----
+    //CONFIG
     private static final int WIDTH = 1200;
     private static final int HEIGHT = 720;
 
     private static final int LEVEL_COUNT = 7;
     private static final String[] LEVEL_NAMES = new String[]{
-            "Array", "Linked List", "Stack", "Queue",
+            "Array", "Linear\n Search", "Binary\n Serach", "Linked List",
             "Traversal", "Graph", "Tree"
     };
 
-    // Resource paths in classpath (adjust RES_BASE if you put assets in a subfolder)
     private static final String RES_BASE = "/";
     private static final String BG       = RES_BASE + "levelselectionbg.png";
     private static final String DOOR     = RES_BASE + "door.png";
@@ -42,7 +41,7 @@ public class LevelSelectScreen extends Pane {
     private static final String BTN_HOME = RES_BASE + "home.png";
     private static final String BTN_RETRY= RES_BASE + "retry.png";
 
-    // Fonts (fallback to default if not found)
+
     private final Font titleFont = loadFontOrDefault("/fonts/CinzelDecorative-Bold.ttf", 50);
     private final Font labelFont = loadFontOrDefault("/fonts/CinzelDecorative-Bold.ttf", 30);
 
@@ -96,7 +95,7 @@ public class LevelSelectScreen extends Pane {
         buildBottomButtons();
     }
 
-    // ---------------- UI BUILDERS ----------------
+    // UI BUILDERS
 
     private void buildBackground() {
         ImageView bg = new ImageView(loadImageOrFail(BG));
@@ -116,9 +115,7 @@ public class LevelSelectScreen extends Pane {
         getChildren().add(t);
     }
 
-    /**
-     * Dotted route lines (top rail, bottom rail) + one straight vertical connector at x=1000.
-     */
+    //Dotted route lines (top rail, bottom rail) + one straight vertical connector at x=1000.
     private void buildPathLines() {
         // Your current rail Y positions and node columns:
         double[][] top = new double[][]{
@@ -185,7 +182,7 @@ public class LevelSelectScreen extends Pane {
     }
 
     private void buildBottomButtons() {
-        // Home (left)
+        // Home
         ImageView home = new ImageView(loadImageOrFail(BTN_HOME));
         home.setFitWidth(90);
         home.setPreserveRatio(true);
@@ -195,7 +192,7 @@ public class LevelSelectScreen extends Pane {
         home.setOnMouseClicked(e -> goHome());
         getChildren().add(home);
 
-        // Retry (right)
+        // Retry
         ImageView retry = new ImageView(loadImageOrFail(BTN_RETRY));
         retry.setFitWidth(110);
         retry.setPreserveRatio(true);
@@ -221,12 +218,12 @@ public class LevelSelectScreen extends Pane {
         });
     }
 
-    // ---------------- BEHAVIOR ----------------
+    // BEHAVIOR
 
     private void handleDoorClick(int levelIndex) {
         DoorView d = doors.get(levelIndex);
         if (d.locked) {
-            // Little shake to show it's locked
+            // Lock Shake
             shake(d.root);
             return;
         }
@@ -269,27 +266,23 @@ public class LevelSelectScreen extends Pane {
         }
     }
 
-    /**
-     * Open the requested level. Array (index 0) -> Level1. Others -> placeholder for now.
-     */
     private void launchLevel(int levelIndex) {
-        /**if (levelIndex == 0) {
-            // ✅ Works when Level1 (via BaseLevel) is a JavaFX Parent
-            Level1 level1 = new Level1();
-            stage.setScene(new Scene(level1, WIDTH, HEIGHT));
-            return;
-        }**/
         //change korlam
 
         if (levelIndex == 0) { // Array
             Level1 level1 = new Level1();
-            Scene s = level1.buildScene(WIDTH, HEIGHT);   // <-- use buildScene
+            Scene s = level1.buildScene(WIDTH, HEIGHT);
+            stage.setScene(s);
+            return;
+        }
+        if (levelIndex == 1) { // Linked List -> Level 2
+            Level2 level2 = new Level2();
+            Scene s = level2.buildScene(WIDTH, HEIGHT);
             stage.setScene(s);
             return;
         }
 
 
-        // Placeholder for other levels (ESC to return)
         javafx.scene.layout.Pane placeholder = new javafx.scene.layout.Pane();
         placeholder.setStyle("-fx-background-color: black;");
 
@@ -315,10 +308,8 @@ public class LevelSelectScreen extends Pane {
         stage.setScene(new Scene(placeholder, WIDTH, HEIGHT));
     }
 
-    /**
-     * Call this when a level is completed (not used during placeholder testing).
-     */
-    public void onLevelCompleted(int completedLevelIndex) {
+    //level is completed
+   /** public void onLevelCompleted(int completedLevelIndex) {
         // Unlock the next level (if any)
         if (completedLevelIndex >= highestUnlocked && completedLevelIndex + 1 < LEVEL_COUNT) {
             highestUnlocked = completedLevelIndex + 1;
@@ -329,10 +320,29 @@ public class LevelSelectScreen extends Pane {
                 doors.get(i).setLocked(i > highestUnlocked);
             }
 
-            // Move girl to next level
             moveGirlToLevel(highestUnlocked, true);
         }
-    }
+    }**/
+   // LevelSelectScreen.java
+   public void onLevelCompleted(int completedLevelIndex) {
+       boolean progressed = false;
+
+       // Unlock if we advanced the frontier
+       if (completedLevelIndex >= highestUnlocked && completedLevelIndex + 1 < LEVEL_COUNT) {
+           highestUnlocked = completedLevelIndex + 1;
+           prefs.putInt(PREF_UNLOCKED, highestUnlocked);
+           progressed = true;
+       }
+
+       // Refresh door locks regardless (in case state changed earlier)
+       for (int i = 0; i < doors.size(); i++) {
+           doors.get(i).setLocked(i > highestUnlocked);
+       }
+
+       // Always move the marker to the current highest unlocked level (animate)
+       moveGirlToLevel(highestUnlocked, true);
+       lastEnteredLevel = highestUnlocked;
+   }
 
     private void retryLastEntered() {
         handleDoorClick(Math.min(lastEnteredLevel, highestUnlocked));
@@ -347,7 +357,7 @@ public class LevelSelectScreen extends Pane {
         }
     }
 
-    // ---------------- HELPER INNER TYPE ----------------
+    //HELPER INNER TYPE
 
     private class DoorView {
         final Group root = new Group();
@@ -357,10 +367,8 @@ public class LevelSelectScreen extends Pane {
         final int index;
         boolean locked = true;
 
-        // Small visual bias if your art's "visual center" differs from image center.
-        // Tweak to taste (e.g., -4..+4). 0,0 keeps exact center.
-        private static final double LOCK_BIAS_X = -4; // move slightly left
-        private static final double LOCK_BIAS_Y = -1; // move slightly up
+        private static final double LOCK_BIAS_X = -4;
+        private static final double LOCK_BIAS_Y = -1;
 
         DoorView(int index, String name, double x, double y, Image doorImg, Image lockImg) {
             this.index = index;
@@ -374,12 +382,12 @@ public class LevelSelectScreen extends Pane {
             lock.setFitWidth(70);
             lock.setPreserveRatio(true);
 
-            // Put door and lock into a StackPane so lock stays centered
+
             javafx.scene.layout.StackPane stack = new javafx.scene.layout.StackPane(door, lock);
             javafx.scene.layout.StackPane.setAlignment(lock, javafx.geometry.Pos.CENTER);
             stack.setPickOnBounds(false); // so empty transparent areas don’t block clicks
 
-            // Optional tiny bias to account for asymmetric borders/transparent padding
+
             lock.setTranslateX(LOCK_BIAS_X);
             lock.setTranslateY(LOCK_BIAS_Y);
 
@@ -391,7 +399,7 @@ public class LevelSelectScreen extends Pane {
             label.setStrokeWidth(0.7);
             label.setLayoutY(210);
 
-            // Layout: use stack instead of door/lock directly
+            //stack instead of door/lock directly
             root.getChildren().addAll(stack, label);
             root.setLayoutX(x);
             root.setLayoutY(y);
@@ -426,7 +434,6 @@ public class LevelSelectScreen extends Pane {
         }
 
         double centerY() {
-            // Use door's rendered height (bounds) for better accuracy
             double h = door.getBoundsInParent().getHeight();
             return root.getLayoutY() + h / 2.0 - 5;
         }

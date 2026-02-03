@@ -13,6 +13,7 @@ public class GameState {
 
     public int getScore() { return score.get(); }
     public void addScore(int delta) { score.set(score.get() + delta); }
+    public void loseScore(int delta) { score.set(score.get() - delta); }
 
     public int getHearts() { return hearts.get(); }
     public void loseHeart() {

@@ -34,7 +34,7 @@ public class InventoryView extends StackPane {
         row.setPadding(new Insets(12));
         row.setMouseTransparent(false);
 
-        // 👉 move all artifacts a bit higher inside the shelf
+
         row.setTranslateY(-8); // try -6 to -12 depending on your art
 
         getChildren().addAll(shelf, row);
@@ -51,7 +51,6 @@ public class InventoryView extends StackPane {
         ImageView iv = AssetLoader.artifactView(a, 72);
         iv.setUserData(a);
 
-        // Begin a drag from inventory -> a slot
         iv.setOnDragDetected(ev -> {
             Dragboard db = iv.startDragAndDrop(TransferMode.MOVE);
             ClipboardContent cc = new ClipboardContent();
