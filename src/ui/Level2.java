@@ -530,10 +530,15 @@ public class Level2 extends BaseLevel {
 
     private void promptCurrentTarget() {
         if (currentTargetIdx != 0) {
-            say("You've uncovered the secret of this row.\n" +
+            if (currentTargetIdx == 3) {
+                say("Sometimes the greatest magic is understanding when something ISN'T there at all.You searched diligently,left to right and proved the absence of magic in this row..Now onward to the next challenge....Find " + LevelConfig.L2_TARGETS[currentTargetIdx] + ".", null);
+                hideDialogueAfter(2500);
+            }
+            else say("You've uncovered the secret of this row.\n" +
                     "Now, prepare to be transported... Find " + LevelConfig.L2_TARGETS[currentTargetIdx] + ".", null);
             hideDialogueAfter(2500);
         }
+
     }
 
     private void hideDialogueAfter(int ms) {
@@ -679,23 +684,31 @@ public class Level2 extends BaseLevel {
 
         if (imgs.size() >= 1 && imgs.get(0) != null)
             snaps.add(new LearningSnap(imgs.get(0),
-                    "[Start] First active row unlocked — scan left to right."));
+                    "You see,1st book of 1st row unlocked,here you learned you have to check every index of an array/list of elements one by one.You can't just check randomly or skip any ithem as the list is unsorted."));
 
         if (imgs.size() >= 2 && imgs.get(1) != null)
             snaps.add(new LearningSnap(imgs.get(1),
-                    "[Best Case] Found immediately — Linear Search best case: O(1)."));
+                    "Found 31:This scene demonstrates the Best Case of Linear Search.\nTarget was Found immediately at first position.\nTime Complexity:O(1)-Constant time,the fastest possible!."));
 
         if (imgs.size() >= 3 && imgs.get(2) != null)
             snaps.add(new LearningSnap(imgs.get(2),
-                    "[Average Case] Found after several checks — Linear Search average: O(n)."));
+                    "Found 24:This scene shows the Average Case of Linear Search.\nTarget was Found after several checks.\nTime Complexity:O(n)-Linear time, grows with array size.."));
 
         if (imgs.size() >= 4 && imgs.get(3) != null)
             snaps.add(new LearningSnap(imgs.get(3),
-                    "[Not Found] End reached — confirm not found or double check."));
+                    "Not Found 172:This scene illustrates the Worst Case when target is absent.\nEvery single element had to be checked and confirmed..\nTime Complexity:O(n)-The entire array must be searched.\n"));
 
         if (imgs.size() >= 5 && imgs.get(4) != null)
             snaps.add(new LearningSnap(imgs.get(4),
-                    "[Worst Case] Found at the end — Linear Search worst: O(n)."));
+                    "Found 17:This scene demonstrates the Worst Case when target exists.\n.Target was Found at very last place after all element checks.\nTime Complexity:O(n)-Linear time at its maximum."));
+        snaps.add(LearningSnap.textOnly(
+                "Linear Search is simple to implement but inefficient for large datasets.\n" +
+                        "The methodical, one-by-one searching you performed\n" +
+                        "demonstrates Linear Search's fundamental limitation:\n" +
+                        "it cannot \"skip ahead\" or make intelligent guesses.The \"BOREDOM\" of checking each book mirrors the algorithm's time cost.In upcoming levels, you'll discover algorithms\n" +
+                        "that can find targets faster than O(n)!\n" +
+                        "But they require one important thing: sorted data."
+        ));
 
         if (snaps.isEmpty()) return;
 
