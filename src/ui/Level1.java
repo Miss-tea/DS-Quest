@@ -628,7 +628,7 @@ public class Level1 extends BaseLevel {
             pulse.play();
 
             // --- Fog motes ---
-            Group motes = createFogMotes(70, 1600, 900);
+            Group motes = createFogMotes(1500, 1200, 1200);
             quizOverlay.getChildren().add(motes);
         }
 
@@ -755,7 +755,7 @@ public class Level1 extends BaseLevel {
             double y = r.nextDouble() * height;
             double radius = 1.5 + r.nextDouble() * 2.5;
 
-            Circle mote = new Circle(radius, Color.web("#ffffff", 0.22));
+            Circle mote = new Circle(radius, Color.web("#ffffff", 0.35));
             mote.setTranslateX(x);
             mote.setTranslateY(y);
 
@@ -884,6 +884,7 @@ public class Level1 extends BaseLevel {
 
     private void showHologramForSlot(SlotView s, Artifact a) {
         clearHologram();
+
         String text = switch (a) {
             case SHIELD -> "Fate Preview:\nLose DEFENSE.\nStrategy +20";
             case KEY    -> "Fate Preview:\nLose ACCESS.\nStrategy +10";
@@ -894,15 +895,15 @@ public class Level1 extends BaseLevel {
 
         Label holo = new Label(text);
         holo.setStyle("""
-            -fx-background-color: rgba(120,200,255,0.12);
-            -fx-text-fill: rgba(180,230,255,0.95);
-            -fx-border-color: rgba(120,200,255,0.35);
-            -fx-border-width: 1.2;
-            -fx-padding: 10 14;
-            -fx-font-size: 14px;
-            -fx-background-radius: 10;
-            -fx-border-radius: 10;
-        """);
+        -fx-background-color: rgba(120,200,255,0.12);
+        -fx-text-fill: rgba(180,230,255,0.95);
+        -fx-border-color: rgba(120,200,255,0.35);
+        -fx-border-width: 1.2;
+        -fx-padding: 10 14;
+        -fx-font-size: 14px;
+        -fx-background-radius: 10;
+        -fx-border-radius: 10;
+    """);
         holo.setMouseTransparent(true);
 
         Timeline shimmer = new Timeline(
@@ -913,21 +914,63 @@ public class Level1 extends BaseLevel {
         shimmer.setAutoReverse(true);
         shimmer.setCycleCount(Animation.INDEFINITE);
 
+        if (holoOverlay == null) {
+            holoOverlay = new StackPane();
+            holoOverlay.setPickOnBounds(false);
+            holoOverlay.setMouseTransparent(true);
+            addToStatusLayer(holoOverlay);
+        }
         holoOverlay.getChildren().add(holo);
         StackPane.setAlignment(holo, Pos.TOP_LEFT);
 
         Platform.runLater(() -> {
-            if (holo.getParent() == null) return;
-            Bounds bScene = s.localToScene(s.getBoundsInLocal());
-            Point2D p = getStatusLayer().sceneToLocal(
-                    bScene.getMinX() + bScene.getWidth() + 10,
-                    bScene.getMinY() - 6
-            );
-            holo.setTranslateX(p.getX());
-            holo.setTranslateY(p.getY());
-            shimmer.play();
-        });
+                    if (holo.getParent() == null) return;
+
+                    // ---Force measurement so width/height are valid ---
+                    holo.applyCss();
+                    holo.autosize();
+                    double w = (holo.getWidth()  > 0) ? holo.getWidth()  : holo.prefWidth(-1);
+                    double h = (holo.getHeight() > 0) ? holo.getHeight() : holo.prefHeight(-1);
+
+                    // ---  the slot bounds in Scene space ---
+                    Bounds bScene = s.localToScene(s.getBoundsInLocal());
+
+                    // Compute TOP-CENTER of the slot in Scene
+                    double topCenterXScene = bScene.getMinX() + bScene.getWidth() / 2.0;
+                    double topCenterYScene = bScene.getMinY();
+
+                    // Convert that point into the Status Layer's local space
+                    Point2D topCenter = getStatusLayer().sceneToLocal(topCenterXScene, topCenterYScene);
+
+                    // --- Bubble centered above the slot ---
+                    // Positive values push right/down; negative pulls left/up.
+                    // Tweak these to sit exactly on your ledge art.
+                    final double OFFSET_Y_UP =-8;  // how far above the slot’s top edge
+                    final double OFFSET_X = -20;      // adjust if you want a slight left/right bias
+
+                    double x = topCenter.getX() - (w / 2.0) + OFFSET_X;      // center horizontally
+                    double y = topCenter.getY() - h - OFFSET_Y_UP;           // above the slot
+
+                    // --- 4) (Optional) Clamp inside the status layer to avoid overflow ---
+                    boolean clamp = true; // set to false if you want free placement even offscreen
+                    if (clamp) {
+                        Bounds statusBounds = getStatusLayer().getLayoutBounds();
+                        double minX = statusBounds.getMinX() + 4;
+                        double minY = statusBounds.getMinY() + 4;
+                        double maxX = statusBounds.getMaxX() - w - 4;
+                        double maxY = statusBounds.getMaxY() - h - 4;
+                        x = Math.max(minX, Math.min(x, maxX));
+                        y = Math.max(minY, Math.min(y, maxY));
+                    }
+
+                    holo.setTranslateX(x);
+                    holo.setTranslateY(y);
+
+                    shimmer.play();
+                }
+        );
     }
+
 
     private void clearHologram() {
         if (holoOverlay != null) holoOverlay.getChildren().clear();
@@ -1021,5 +1064,13 @@ public class Level1 extends BaseLevel {
 
         addToStatusLayer(board);
         board.show();
+    }
+
+    // ---------- NEW: Ensure DONE strip is removed when Game Over board appears ----------
+
+    protected void hideDoneIfAny() {
+        if (worldRoot != null && doneWrap != null) {
+            worldRoot.getChildren().remove(doneWrap);
+        }
     }
 }

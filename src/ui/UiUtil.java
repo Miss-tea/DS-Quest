@@ -29,6 +29,14 @@ public final class UiUtil {
         b.setOnMouseExited(ev -> b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
         return b;
     }
+    public static Button btn(String text,char e) {
+        Button b = new Button(text);
+        b.setFont(AssetLoader.loadFont("/fonts/SegoeUI-Symbol.ttf", 46));
+        b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;");
+        b.setOnMouseEntered(ev -> b.setStyle("-fx-background-color: #a16930; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
+        b.setOnMouseExited(ev -> b.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-padding: 8 18; -fx-background-radius: 6;"));
+        return b;
+    }
 
     public static Label paper(String text) {
         Label l = new Label(text);

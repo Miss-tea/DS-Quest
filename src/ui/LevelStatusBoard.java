@@ -85,8 +85,9 @@ public class LevelStatusBoard extends StackPane {
     private final double imgW;
     private final double imgH;
 
-    // NEW: Callback when DONE is pressed (after hide finishes)
-    private Runnable onDone;
+    // Callback when DONE or RETRY is pressed
+    private Runnable onDone;   // for Survived (DONE)
+    private Runnable onRetry;  // for Game Over (RETRY)
 
     public LevelStatusBoard(Node blurTarget, Button doneButtonTemplate) {
         this.blurTarget = blurTarget;
@@ -165,8 +166,7 @@ public class LevelStatusBoard extends StackPane {
         messageLabel.setMaxWidth(PAPER_W);
 
         doneButton = UiUtil.btn("DONE");
-        // UPDATED: call the overload that accepts an after-callback
-        doneButton.setOnAction(e -> hide(this.onDone));
+        // Handler is set dynamically in show(...)
 
         contentBox = new VBox(8, scoreLabel, messageLabel, doneButton);
         contentBox.setAlignment(Pos.TOP_CENTER);
@@ -217,6 +217,10 @@ public class LevelStatusBoard extends StackPane {
         this.onDone = onDone;
     }
 
+    public void setOnRetry(Runnable onRetry) {
+        this.onRetry = onRetry;
+    }
+
     public void showSurvived(int score, String strategyMsg, int maxScore) {
         if (maxScore <= 0) maxScore = Math.max(1, score);
         show(Mode.SURVIVED, score, strategyMsg, maxScore);
@@ -239,6 +243,15 @@ public class LevelStatusBoard extends StackPane {
         int stars = (mode == Mode.GAME_OVER) ? 0 : computeStars(score, maxScore);
         resetStarsDim();
         if (stars > 0) animateStars(stars);
+
+        // --- Swap primary button based on mode ---
+        if (mode == Mode.GAME_OVER) {
+            doneButton.setText("RETRY");
+            doneButton.setOnAction(e -> hide(this.onRetry));
+        } else {
+            doneButton.setText("DONE");
+            doneButton.setOnAction(e -> hide(this.onDone));
+        }
 
         UiBlur.apply(blurTarget, true);
 

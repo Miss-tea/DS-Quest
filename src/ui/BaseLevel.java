@@ -6,6 +6,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -38,6 +39,11 @@ public abstract class BaseLevel {
         return AssetLoader.BG;
     }
 
+    // -------------------- Quit UI fields --------------------
+    private HBox quitWrap;                    // bottom-left Quit button container
+    private Button quitBtn;                   // "QUIT" button
+    private StackPane quitConfirmOverlay;     // YES/NO confirmation overlay
+
     public Scene buildScene(double w, double h) {
         // === BACKGROUND ===
         backgroundView = AssetLoader.imageView(getBackgroundPath(), w, h, false);
@@ -53,7 +59,7 @@ public abstract class BaseLevel {
 
         // === OVERLAY (HUD + Dialogue) ===
         StackPane overlay = new StackPane();
-        overlay.setPickOnBounds(false);
+        overlay.setPickOnBounds(false); // let clicks pass through anywhere there is no actual node
 
         StackPane.setAlignment(hud, Pos.TOP_LEFT);
         StackPane.setMargin(hud, new Insets(10, 20, 0, 20));
@@ -63,6 +69,9 @@ public abstract class BaseLevel {
         StackPane.setMargin(dialogue, new Insets(0, 0, -30, 300));
 
         overlay.getChildren().addAll(hud, dialogue);
+
+        // === QUIT BUTTON (bottom-left) ===
+        installQuitButton(overlay);
 
         // === COMBINE: background + world + overlay (full-frame composite) ===
         allRef = new StackPane(canvas, worldLayer, overlay);
@@ -136,6 +145,10 @@ public abstract class BaseLevel {
     protected void showGameOverImmediate() {
         if (statusBoard == null) initStatusBoard();
         dialogue.hide();
+
+        // Wire RETRY -> restart the same level with a fresh instance
+        statusBoard.setOnRetry(this::restartThisLevel);
+
         statusBoard.showGameOver(0, "Be careful with your hearts.");
     }
 
@@ -232,5 +245,102 @@ public abstract class BaseLevel {
     /** Override in each Level class to provide the title string. */
     protected String getLevelTitle() {
         return "";
+    }
+
+    // ===================== QUIT UI =====================
+
+    /** Install a bottom-left "QUIT" button that opens a YES/NO confirmation. */
+    private void installQuitButton(StackPane overlay) {
+        if (overlay == null || quitWrap != null) return;
+
+        quitBtn = UiUtil.btn("❌",'e');
+        quitBtn.setMouseTransparent(false);   // button itself accepts clicks
+        quitBtn.setFocusTraversable(false);   // don't steal keyboard focus
+        quitBtn.setOnAction(e -> showQuitConfirm());
+
+        quitWrap = new HBox(quitBtn);
+        quitWrap.setAlignment(Pos.BOTTOM_LEFT);
+
+        // CRITICAL: Only the actual button area should be clickable, not any empty space
+        quitWrap.setPickOnBounds(false);
+
+        overlay.getChildren().add(quitWrap);
+        StackPane.setAlignment(quitWrap, Pos.BOTTOM_LEFT);
+        StackPane.setMargin(quitWrap, new Insets(0, 0, 16, 16)); // bottom-left spacing
+    }
+
+    /** Show a small confirmation card on the status layer: "Quit Game? [YES] [NO]". */
+    private void showQuitConfirm() {
+        if (quitConfirmOverlay != null) return;
+
+        // Question + buttons
+        Label question = new Label("Quit Game?");
+        question.setStyle("-fx-text-fill: #f7f1e3; -fx-font-size: 18px; -fx-font-weight: bold;");
+
+        Button yes = UiUtil.btn("YES");
+        Button no  = UiUtil.btn("NO");
+
+        yes.setOnAction(e -> {
+            hideQuitConfirm();
+            goToLevelSelect();
+        });
+        no.setOnAction(e -> hideQuitConfirm());
+
+        HBox buttons = new HBox(10, yes, no);
+        buttons.setAlignment(Pos.CENTER);
+
+        VBox card = new VBox(10, question, buttons);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setStyle("""
+            -fx-background-color: rgba(20,20,20,0.78);
+            -fx-background-radius: 10;
+            -fx-border-color: rgba(255,255,255,0.28);
+            -fx-border-width: 1;
+            -fx-border-radius: 10;
+        """);
+
+        // Container overlay that sits centered in the status layer — this is intentionally modal
+        quitConfirmOverlay = new StackPane(card);
+        quitConfirmOverlay.setPickOnBounds(true);   // click outside can be used to dismiss if you want
+        quitConfirmOverlay.setMouseTransparent(false);
+        StackPane.setAlignment(card, Pos.CENTER);
+
+        addToStatusLayer(quitConfirmOverlay);
+        StackPane.setAlignment(quitConfirmOverlay, Pos.CENTER);
+    }
+
+    /** Remove the YES/NO quit confirmation if visible. */
+    private void hideQuitConfirm() {
+        if (quitConfirmOverlay == null) return;
+        if (statusLayerRef != null) {
+            statusLayerRef.getChildren().remove(quitConfirmOverlay);
+        }
+        quitConfirmOverlay = null;
+    }
+
+    // ===================== RETRY: hard restart (fresh hearts & score) =====================
+
+    /** Create a fresh instance of the SAME level class and replace the Scene. */
+    protected void restartThisLevel() {
+        Scene current = root.getScene();
+        if (current == null || current.getWindow() == null) return;
+
+        try {
+            Stage stage = (Stage) current.getWindow();
+            double w = current.getWidth()  > 0 ? current.getWidth()  : 1200;
+            double h = current.getHeight() > 0 ? current.getHeight() : 720;
+
+            // Fresh instance of the same level (default constructor required)
+            BaseLevel fresh = this.getClass().getDeclaredConstructor().newInstance();
+
+            // New Scene -> new HUD + new GameState (fresh hearts & score)
+            Scene scene = fresh.buildScene(w, h);
+            stage.setScene(scene);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            // Fallback: if anything fails, return to Level Select
+            goToLevelSelect();
+        }
     }
 }

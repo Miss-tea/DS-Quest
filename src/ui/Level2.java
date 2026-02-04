@@ -700,7 +700,7 @@ public class Level2 extends BaseLevel {
 
         if (imgs.size() >= 5 && imgs.get(4) != null)
             snaps.add(new LearningSnap(imgs.get(4),
-                    "Found 17:This scene demonstrates the Worst Case when target exists.\n.Target was Found at very last place after all element checks.\nTime Complexity:O(n)-Linear time at its maximum."));
+                    "Found 17:This scene demonstrates the Worst Case when target exists.\nTarget was Found at very last place after all element checks.\nTime Complexity:O(n)-Linear time at its maximum."));
         snaps.add(LearningSnap.textOnly(
                 "Linear Search is simple to implement but inefficient for large datasets.\n" +
                         "The methodical, one-by-one searching you performed\n" +
