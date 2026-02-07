@@ -267,30 +267,45 @@ public class LevelSelectScreen extends Pane {
     }
 
     private void launchLevel(int levelIndex) {
-        //change korlam
+        // Map door indices to concrete level classes.
+        // 0: Level 1 (Arrays), 1: Level 2 (Linear Search),
+        // 2: Level 3 (Binary Search), 3: Level 4 (Linked List).
 
-        if (levelIndex == 0) { // Array
+        if (levelIndex == 0) {
             Level1 level1 = new Level1();
             Scene s = level1.buildScene(WIDTH, HEIGHT);
             stage.setScene(s);
             return;
         }
-        if (levelIndex == 1) { // Linked List -> Level 2
+        if (levelIndex == 1) {
             Level2 level2 = new Level2();
             Scene s = level2.buildScene(WIDTH, HEIGHT);
             stage.setScene(s);
             return;
         }
+        if (levelIndex == 2) {
+            Level3 level3 = new Level3();
+            Scene s = level3.buildScene(WIDTH, HEIGHT);
+            stage.setScene(s);
+            return;
+        }
+        if (levelIndex == 3) {
+            Level4 level4 = new Level4();
 
+            Scene s = level4.buildScene(WIDTH, HEIGHT);
+            stage.setScene(s);
+            return;
+        }
 
-        javafx.scene.layout.Pane placeholder = new javafx.scene.layout.Pane();
+        // Remaining doors still use a simple placeholder until those levels are built.
+        Pane placeholder = new Pane();
         placeholder.setStyle("-fx-background-color: black;");
 
-        javafx.scene.text.Text t = new javafx.scene.text.Text(
+        Text t = new Text(
                 "Placeholder Level " + (levelIndex + 1) + "\n\nPress ESC to return to Level Select"
         );
-        t.setFill(javafx.scene.paint.Color.WHITE);
-        t.setFont(javafx.scene.text.Font.font(32));
+        t.setFill(Color.WHITE);
+        t.setFont(Font.font(32));
         t.setLayoutX(180);
         t.setLayoutY(220);
 
@@ -309,40 +324,40 @@ public class LevelSelectScreen extends Pane {
     }
 
     //level is completed
-   /** public void onLevelCompleted(int completedLevelIndex) {
-        // Unlock the next level (if any)
+    /** public void onLevelCompleted(int completedLevelIndex) {
+     // Unlock the next level (if any)
+     if (completedLevelIndex >= highestUnlocked && completedLevelIndex + 1 < LEVEL_COUNT) {
+     highestUnlocked = completedLevelIndex + 1;
+     prefs.putInt(PREF_UNLOCKED, highestUnlocked);
+
+     // Update locks visually
+     for (int i = 0; i < doors.size(); i++) {
+     doors.get(i).setLocked(i > highestUnlocked);
+     }
+
+     moveGirlToLevel(highestUnlocked, true);
+     }
+     }**/
+    // LevelSelectScreen.java
+    public void onLevelCompleted(int completedLevelIndex) {
+        boolean progressed = false;
+
+        // Unlock if we advanced the frontier
         if (completedLevelIndex >= highestUnlocked && completedLevelIndex + 1 < LEVEL_COUNT) {
             highestUnlocked = completedLevelIndex + 1;
             prefs.putInt(PREF_UNLOCKED, highestUnlocked);
-
-            // Update locks visually
-            for (int i = 0; i < doors.size(); i++) {
-                doors.get(i).setLocked(i > highestUnlocked);
-            }
-
-            moveGirlToLevel(highestUnlocked, true);
+            progressed = true;
         }
-    }**/
-   // LevelSelectScreen.java
-   public void onLevelCompleted(int completedLevelIndex) {
-       boolean progressed = false;
 
-       // Unlock if we advanced the frontier
-       if (completedLevelIndex >= highestUnlocked && completedLevelIndex + 1 < LEVEL_COUNT) {
-           highestUnlocked = completedLevelIndex + 1;
-           prefs.putInt(PREF_UNLOCKED, highestUnlocked);
-           progressed = true;
-       }
+        // Refresh door locks regardless (in case state changed earlier)
+        for (int i = 0; i < doors.size(); i++) {
+            doors.get(i).setLocked(i > highestUnlocked);
+        }
 
-       // Refresh door locks regardless (in case state changed earlier)
-       for (int i = 0; i < doors.size(); i++) {
-           doors.get(i).setLocked(i > highestUnlocked);
-       }
-
-       // Always move the marker to the current highest unlocked level (animate)
-       moveGirlToLevel(highestUnlocked, true);
-       lastEnteredLevel = highestUnlocked;
-   }
+        // Always move the marker to the current highest unlocked level (animate)
+        moveGirlToLevel(highestUnlocked, true);
+        lastEnteredLevel = highestUnlocked;
+    }
 
     private void retryLastEntered() {
         handleDoorClick(Math.min(lastEnteredLevel, highestUnlocked));
@@ -456,3 +471,4 @@ public class LevelSelectScreen extends Pane {
         }
     }
 }
+
